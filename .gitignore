@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+dist/
+build/
+*.egg-info/
+
+# Secrets
+.env
+.env.*
+secrets.yaml
+
+# Data & model artifacts
+data/raw/
+data/processed/
+data/cache/
+models/checkpoints/
+models/saved/
+logs/
+
+# Notebooks
+.ipynb_checkpoints/

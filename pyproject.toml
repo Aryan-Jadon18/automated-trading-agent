@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "trading-agent"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    # Data
+    "yfinance>=0.2.40",
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "pandas-ta>=0.3.14b",
+    # Config
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    # ML
+    "scikit-learn>=1.5",
+    "xgboost>=2.0",
+    "torch>=2.3",
+    # RL
+    "stable-baselines3>=2.3",
+    "gymnasium>=0.29",
+    # Broker
+    "alpaca-py>=0.25",
+    # Utils
+    "rich>=13.0",
+    "structlog>=24.0",
+    "joblib>=1.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/trading"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

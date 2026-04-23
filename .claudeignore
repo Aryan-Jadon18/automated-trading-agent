@@ -1,0 +1,37 @@
+# Large data & model artifacts — exclude from Claude context
+data/raw/**
+data/processed/**
+data/cache/**
+models/checkpoints/**
+models/saved/**
+logs/**
+*.csv
+*.parquet
+*.feather
+*.h5
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.onnx
+*.log
+
+# Python noise
+__pycache__/**
+*.pyc
+*.pyo
+.pytest_cache/**
+.mypy_cache/**
+htmlcov/**
+.coverage
+dist/**
+build/**
+*.egg-info/**
+
+# Env / secrets
+.env
+.env.*
+secrets.yaml
+
+# Notebooks (heavy outputs)
+**/.ipynb_checkpoints/**
