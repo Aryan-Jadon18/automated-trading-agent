@@ -37,8 +37,8 @@ models/         checkpoints/, saved/      [git-ignored]
 | 1 | Config system (pydantic-settings + YAML) | ✅ Done |
 | 2 | Data ingestion (yfinance, OHLCV) | ✅ Done |
 | 2 | Feature engineering pipeline | ✅ Done |
-| 3 | Strategy base class + technical strategy | ⬜ Pending |
-| 3 | Backtesting engine (event-driven) | ⬜ Pending |
+| 3 | Strategy base class + technical strategies | ✅ Done |
+| 3 | Backtesting engine (event-driven, no look-ahead) | ✅ Done |
 | 4 | Monte Carlo simulation (GBM + fat-tail) | ⬜ Pending |
 | 4 | VaR / CVaR / drawdown analysis | ⬜ Pending |
 | 5 | ML models (XGBoost signal predictor) | ⬜ Pending |
@@ -55,5 +55,10 @@ models/         checkpoints/, saved/      [git-ignored]
 - All secrets via env vars, never committed
 - Paper trading first; live trading gated behind config flag
 
+## Backtest Architecture (Tier 3)
+Event queue flow (no look-ahead bias):
+`MarketEvent → Strategy.on_bar() → SignalEvent → Portfolio.on_signal() → OrderEvent → SimulatedBroker → FillEvent → Portfolio.on_fill()`
+Orders fill at **next bar's open** + slippage. Strategies: SMACrossover, MeanReversion.
+
 ## Next Step
-**Tier 3:** Implement strategy base class + simple technical strategy + event-driven backtest engine.
+**Tier 4:** Monte Carlo simulation — GBM + fat-tail models, multi-asset Cholesky correlation, VaR/CVaR/drawdown distributions.
