@@ -1,0 +1,40 @@
+data:
+  provider: yfinance          # yfinance | alpaca
+  symbols: ["SPY", "QQQ", "AAPL", "MSFT", "GOOGL"]
+  interval: "1d"              # 1m 5m 1h 1d
+  lookback_days: 1825         # 5 years
+
+strategy:
+  name: technical             # technical | ml | rl
+  short_window: 20
+  long_window: 50
+  rsi_period: 14
+
+backtest:
+  initial_capital: 100000.0
+  commission: 0.001           # 0.1% per trade
+  slippage: 0.0005
+
+montecarlo:
+  n_simulations: 10000
+  n_days: 252
+  model: gbm                  # gbm | fat_tail | regime
+  confidence_levels: [0.95, 0.99]
+
+risk:
+  max_position_pct: 0.20      # max 20% per position
+  max_drawdown_pct: 0.15      # halt if drawdown > 15%
+  kelly_fraction: 0.25        # quarter-Kelly sizing
+
+models:
+  xgb_n_estimators: 300
+  xgb_learning_rate: 0.05
+  lstm_hidden: 128
+  lstm_layers: 2
+  lstm_seq_len: 60
+  rl_timesteps: 500000
+
+execution:
+  mode: paper                 # paper | live
+  broker: alpaca
+  rebalance_freq: daily       # daily | weekly | signal
