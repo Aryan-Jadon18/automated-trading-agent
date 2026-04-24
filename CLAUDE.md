@@ -39,8 +39,8 @@ models/         checkpoints/, saved/      [git-ignored]
 | 2 | Feature engineering pipeline | ✅ Done |
 | 3 | Strategy base class + technical strategies | ✅ Done |
 | 3 | Backtesting engine (event-driven, no look-ahead) | ✅ Done |
-| 4 | Monte Carlo simulation (GBM + fat-tail) | ⬜ Pending |
-| 4 | VaR / CVaR / drawdown analysis | ⬜ Pending |
+| 4 | Monte Carlo simulation (GBM + fat-tail + regime) | ✅ Done |
+| 4 | VaR / CVaR / drawdown analysis | ✅ Done |
 | 5 | ML models (XGBoost signal predictor) | ⬜ Pending |
 | 5 | LSTM / Transformer price model | ⬜ Pending |
 | 5 | RL agent (PPO execution) | ⬜ Pending |
@@ -60,5 +60,10 @@ Event queue flow (no look-ahead bias):
 `MarketEvent → Strategy.on_bar() → SignalEvent → Portfolio.on_signal() → OrderEvent → SimulatedBroker → FillEvent → Portfolio.on_fill()`
 Orders fill at **next bar's open** + slippage. Strategies: SMACrossover, MeanReversion.
 
+## Monte Carlo Architecture (Tier 4)
+Three models: GBM (normal shocks), fat_tail (Student-t, auto-fit ν), regime (2-state Markov bull/bear).
+Multi-asset via Cholesky decomposition. Analysis: VaR, CVaR, MDD distribution, return percentiles, strategy overlay.
+Entry point: `simulate_gbm / simulate_fat_tail / simulate_regime` → `run_analysis` → `MCResult.summary()`.
+
 ## Next Step
-**Tier 4:** Monte Carlo simulation — GBM + fat-tail models, multi-asset Cholesky correlation, VaR/CVaR/drawdown distributions.
+**Tier 5:** ML models — XGBoost signal predictor, LSTM price model, PPO RL execution agent.
