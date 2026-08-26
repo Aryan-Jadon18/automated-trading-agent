@@ -22,6 +22,7 @@ src/trading/
   models/       base.py, lstm.py, xgb.py, rl_agent.py
   risk/         manager.py
   execution/    broker.py, orders.py
+  live/         orchestrator.py, state.py, monitor.py
   utils/        logging.py, metrics.py
 config/         settings.py, default.yaml
 tests/
@@ -46,7 +47,7 @@ models/         checkpoints/, saved/      [git-ignored]
 | 5 | RL agent (PPO execution) | ✅ Done |
 | 6 | Risk manager (Kelly, drawdown, exposure, correlation) | ✅ Done |
 | 7 | Execution layer (orders, brokers, Alpaca) | ✅ Done |
-| 8 | Live orchestration + monitoring | ⬜ Pending |
+| 8 | Live orchestration + monitoring | ✅ Done |
 
 ## Key Design Decisions
 - Event-driven backtest engine (not vectorized) for realistic simulation
@@ -97,11 +98,45 @@ Entry point: `simulate_gbm / simulate_fat_tail / simulate_regime` → `run_analy
 - **Live trading needs two independent switches**: `allow_live=True` *and*
   `TRADING_ALLOW_LIVE=1`. Either one alone raises `LiveTradingBlocked`.
 
+## Live Layer (Tier 8)
+`live/state.py` — `TradingState`, everything needed to survive a restart.
+- `last_bar_time` per symbol is the **idempotency key**: a bar is acted on at most once
+- Atomic saves (temp file + `os.replace`), so a kill mid-write keeps the last good state
+- A **corrupt state file raises rather than resetting** — silently starting fresh would
+  lose the record of which bars were traded and could double-submit orders
+
+`live/monitor.py` — health checks + alert dispatch.
+- Failing **CRITICAL** check aborts the cycle before any order is placed
+- Standard checks: broker connectivity, position reconciliation, drawdown, data freshness
+- A check that raises counts as failed; a broken alert sink never reaches the trading path
+- Alerts dedupe per title, but **CRITICAL always fires**
+
+`live/orchestrator.py` — `LiveTrader`, the loop that joins every tier.
+`fetch → new-bar check → Strategy.on_bar → size → RiskManager.evaluate → Broker.submit`
+- `startup()` **warms the strategy with history** — without this a restarted process is
+  blind for its whole SMA window and can miss a crossing entirely (found by running it)
+- Startup **halts on position drift**: positions moved outside the session mean local
+  sizing would be wrong
+- `run_once()` is the testable unit; `run_forever()` schedules it (inject `sleep_fn`)
+- `dry_run=True` runs the full decision path without submitting
+- SIGINT/SIGTERM finish the cycle, optionally cancel working orders, always persist
+
 ## Testing
-189 tests passing (`python3 -m pytest tests/ -q`). Heavy deps needed for the ML tier:
+268 tests passing (`python3 -m pytest tests/ -q`). Heavy deps needed for the ML tier:
 `pip install numpy pandas pytest pyyaml pydantic-settings scikit-learn structlog xgboost torch gymnasium stable-baselines3`
 Note: PyTorch's own CDN is blocked by the proxy — install `torch` from default PyPI.
 
-## Next Step
-**Tier 8:** Live orchestration — scheduler/event loop, strategy→risk→broker wiring,
-state persistence across restarts, monitoring and alerting.
+## Status
+All 8 tiers complete. To run live against Alpaca paper:
+1. `export ALPACA_API_KEY=... ALPACA_SECRET_KEY=...`
+2. `AlpacaBroker.from_config(settings.execution)` → `LiveTrader(...)` → `run_forever()`
+3. Start with `dry_run=True` and confirm the decision log before removing it.
+
+Live trading (real money) additionally needs `allow_live=True` **and**
+`TRADING_ALLOW_LIVE=1`; either alone raises `LiveTradingBlocked`.
+
+### Possible next work
+- Backfill an integration test against the real Alpaca paper API (needs credentials)
+- Multi-strategy allocation across an ensemble (XGB + LSTM + RL voting)
+- Walk-forward retraining scheduled inside the live loop
+- Web dashboard over `LiveTrader.status()`
