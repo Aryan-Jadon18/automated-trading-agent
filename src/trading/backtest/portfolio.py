@@ -15,6 +15,7 @@ from src.trading.backtest.events import (
     OrderType,
     SignalEvent,
 )
+from src.trading.risk.manager import RiskManager
 from src.trading.utils.metrics import summary as perf_summary
 
 
@@ -61,11 +62,13 @@ class Portfolio:
         initial_capital: float = 100_000.0,
         max_position_pct: float = 0.20,
         commission: float = 0.001,
+        risk_manager: RiskManager | None = None,
     ) -> None:
         self.symbols = symbols
         self.initial_capital = initial_capital
         self.max_position_pct = max_position_pct
         self.commission = commission
+        self.risk_manager = risk_manager
 
         self.cash: float = initial_capital
         self.positions: dict[str, Position] = {s: Position(s) for s in symbols}
@@ -80,6 +83,8 @@ class Portfolio:
         self._latest_prices = {}
         self._equity_records = []
         self._trade_log = []
+        if self.risk_manager is not None:
+            self.risk_manager.reset()
 
     # ── Market update ─────────────────────────────────────────────────────────
 
@@ -87,10 +92,36 @@ class Portfolio:
         self._latest_prices[event.symbol] = event.close
         equity = self._total_equity()
         self._equity_records.append({"datetime": event.datetime, "equity": equity})
+        if self.risk_manager is not None:
+            self.risk_manager.update_equity(equity)
 
     # ── Signal → Order ────────────────────────────────────────────────────────
 
     def on_signal(self, signal: SignalEvent) -> Optional[OrderEvent]:
+        """
+        Convert a signal into a sized order, then run it through the
+        RiskManager (when one is attached). Returns None if risk rejects it.
+        """
+        order = self._propose_order(signal)
+        if order is None or self.risk_manager is None:
+            return order
+
+        price = self._latest_prices.get(order.symbol, 0.0)
+        decision = self.risk_manager.evaluate(
+            symbol=order.symbol,
+            proposed_qty=order.quantity,
+            price=price,
+            equity=self._total_equity(),
+            positions={s: p.quantity for s, p in self.positions.items()},
+            prices=self._latest_prices,
+        )
+        if not decision.approved:
+            return None
+
+        order.quantity = decision.approved_quantity
+        return order
+
+    def _propose_order(self, signal: SignalEvent) -> Optional[OrderEvent]:
         price = self._latest_prices.get(signal.symbol)
         if price is None or price <= 0:
             return None

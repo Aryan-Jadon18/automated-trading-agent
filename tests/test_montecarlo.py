@@ -102,7 +102,7 @@ def test_gbm_paths_shape(gbm_paths):
 
 
 def test_gbm_paths_start_at_s0(gbm_paths):
-    assert (gbm_paths[:, 0, 0] == pytest.approx(1.0)).all()
+    assert np.allclose(gbm_paths[:, 0, 0], 1.0)
 
 
 def test_gbm_paths_positive(gbm_paths):
@@ -244,10 +244,23 @@ def test_run_analysis_summary_shape(multi_paths):
     assert set(df.index) == {"SPY", "QQQ"}
 
 
-def test_run_analysis_fat_tail_vs_gbm_cvar(single_asset_params, identity_corr):
-    """Fat-tail CVaR should be >= GBM CVaR at same confidence."""
-    gbm = simulate_gbm(single_asset_params, identity_corr, 2000, N_DAYS, seed=10)
+def test_fat_tail_cvar_exceeds_gbm_at_daily_horizon(single_asset_params, identity_corr):
+    """
+    Fat-tail CVaR must exceed GBM CVaR at the daily horizon, where the
+    Student-t shocks are visible. Over long horizons the CLT pulls the
+    compounded terminal distribution back toward normal, so the tail
+    premium is only reliably measurable per-bar.
+    """
+    gbm = simulate_gbm(single_asset_params, identity_corr, 5000, N_DAYS, seed=10)
+    ft = simulate_fat_tail(single_asset_params, identity_corr, 5000, N_DAYS, seed=10)
+    for conf in (0.99, 0.999):
+        assert cvar(ft, conf, horizon_days=1) > cvar(gbm, conf, horizon_days=1)
+
+
+def test_run_analysis_fat_tail_populates_all_metrics(single_asset_params, identity_corr):
+    """run_analysis should return a fully-populated MCResult for the fat-tail model."""
     ft = simulate_fat_tail(single_asset_params, identity_corr, 2000, N_DAYS, seed=10)
-    r_gbm = run_analysis(gbm, ["SPY"], model="gbm")
-    r_ft = run_analysis(ft, ["SPY"], model="fat_tail")
-    assert r_ft.cvar_95[0] >= r_gbm.cvar_95[0]
+    r = run_analysis(ft, ["SPY"], model="fat_tail")
+    assert r.model == "fat_tail"
+    assert r.cvar_95[0] >= r.var_95[0]
+    assert r.cvar_99[0] >= r.var_99[0]

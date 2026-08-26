@@ -44,7 +44,7 @@ models/         checkpoints/, saved/      [git-ignored]
 | 5 | ML models (XGBoost signal predictor) | ✅ Done |
 | 5 | LSTM price model | ✅ Done |
 | 5 | RL agent (PPO execution) | ✅ Done |
-| 6 | Risk manager (Kelly, drawdown limits) | ⬜ Pending |
+| 6 | Risk manager (Kelly, drawdown, exposure, correlation) | ✅ Done |
 | 7 | Execution layer (Alpaca paper trading) | ⬜ Pending |
 | 8 | Live orchestration + monitoring | ⬜ Pending |
 
@@ -71,5 +71,20 @@ Entry point: `simulate_gbm / simulate_fat_tail / simulate_regime` → `run_analy
 - `models/lstm.py`: `LSTMPriceModel` — PyTorch LSTM seq-to-one, early stopping, GPU-aware
 - `models/rl_agent.py`: `TradingEnv` (Gymnasium) + `PPORLAgent` (SB3 PPO) — position-based reward
 
+## Risk Layer (Tier 6)
+`risk/manager.py` — every order passes `RiskManager.evaluate()` before execution.
+- `kelly_fraction(win_rate, avg_win, avg_loss)` / `kelly_from_returns(series)` — fractional Kelly
+- `DrawdownGuard` — halts on breach, hysteresis resume (won't re-enter until recovered)
+- `ExposureLimits` — per-position / gross / net / max-open-positions caps
+- `CorrelationLimiter` — caps combined exposure to clusters where |corr| >= threshold
+- Returns `RiskDecision(approved, approved_quantity, reasons)`; orders are **shrunk, not just rejected**
+- **Closing/reducing a position is never blocked**, even while halted
+- Wired into `Portfolio(risk_manager=...)` and `run_backtest(risk_manager=...)`
+
+## Testing
+119 tests passing (`python3 -m pytest tests/ -q`). Heavy deps needed for the ML tier:
+`pip install numpy pandas pytest pyyaml pydantic-settings scikit-learn structlog xgboost torch gymnasium stable-baselines3`
+Note: PyTorch's own CDN is blocked by the proxy — install `torch` from default PyPI.
+
 ## Next Step
-**Tier 6:** Risk manager — Kelly sizing, drawdown circuit-breaker, position limits, correlation-aware allocation.
+**Tier 7:** Execution layer — Alpaca paper-trading broker, order management, reconciliation.

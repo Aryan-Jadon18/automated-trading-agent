@@ -40,7 +40,6 @@ class XGBSignalModel(BaseModel):
             max_depth=max_depth,
             subsample=subsample,
             colsample_bytree=colsample_bytree,
-            use_label_encoder=False,
             eval_metric="mlogloss",
             random_state=random_state,
             n_jobs=-1,
@@ -59,18 +58,24 @@ class XGBSignalModel(BaseModel):
         X_clean = X.loc[mask]
         y_clean = y.loc[mask].astype(int)
 
+        classes = sorted(y_clean.unique())
+        self._class_map = dict(enumerate(classes))          # index → signal
+        inverse = {c: i for i, c in self._class_map.items()}  # signal → index
+        y_encoded = y_clean.map(inverse)
+
         X_scaled = self._scaler.fit_transform(X_clean)
-        self._model.fit(X_scaled, y_clean, **kwargs)
-        self._class_map = {i: c for i, c in enumerate(self._model.classes_)}
+        self._model.fit(X_scaled, y_encoded, **kwargs)
         self.is_fitted = True
         return self
 
     # ── Predict ───────────────────────────────────────────────────────────────
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Return decoded signals in {-1, 0, +1}."""
         self._check_fitted()
         X_scaled = self._scaler.transform(X)
-        return self._model.predict(X_scaled).astype(int)
+        encoded = self._model.predict(X_scaled).astype(int)
+        return np.array([self._class_map.get(int(c), 0) for c in encoded], dtype=int)
 
     def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
         """Returns (n_samples, n_classes) probability matrix."""

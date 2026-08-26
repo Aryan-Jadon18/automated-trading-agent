@@ -13,6 +13,7 @@ from src.trading.backtest.events import (
     OrderEvent,
 )
 from src.trading.backtest.portfolio import Portfolio
+from src.trading.risk.manager import RiskManager
 from src.trading.strategy.base import Strategy
 from src.trading.utils.logging import get_logger
 
@@ -164,6 +165,7 @@ def run_backtest(
     commission: float = 0.001,
     slippage: float = 0.0005,
     max_position_pct: float = 0.20,
+    risk_manager: RiskManager | None = None,
 ) -> BacktestResult:
     """Convenience wrapper — creates Portfolio + Engine and runs in one call."""
     portfolio = Portfolio(
@@ -171,6 +173,7 @@ def run_backtest(
         initial_capital=initial_capital,
         commission=commission,
         max_position_pct=max_position_pct,
+        risk_manager=risk_manager,
     )
     engine = BacktestEngine(
         data=data,
