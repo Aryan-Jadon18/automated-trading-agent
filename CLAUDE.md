@@ -41,9 +41,9 @@ models/         checkpoints/, saved/      [git-ignored]
 | 3 | Backtesting engine (event-driven, no look-ahead) | ✅ Done |
 | 4 | Monte Carlo simulation (GBM + fat-tail + regime) | ✅ Done |
 | 4 | VaR / CVaR / drawdown analysis | ✅ Done |
-| 5 | ML models (XGBoost signal predictor) | ⬜ Pending |
-| 5 | LSTM / Transformer price model | ⬜ Pending |
-| 5 | RL agent (PPO execution) | ⬜ Pending |
+| 5 | ML models (XGBoost signal predictor) | ✅ Done |
+| 5 | LSTM price model | ✅ Done |
+| 5 | RL agent (PPO execution) | ✅ Done |
 | 6 | Risk manager (Kelly, drawdown limits) | ⬜ Pending |
 | 7 | Execution layer (Alpaca paper trading) | ⬜ Pending |
 | 8 | Live orchestration + monitoring | ⬜ Pending |
@@ -65,5 +65,11 @@ Three models: GBM (normal shocks), fat_tail (Student-t, auto-fit ν), regime (2-
 Multi-asset via Cholesky decomposition. Analysis: VaR, CVaR, MDD distribution, return percentiles, strategy overlay.
 Entry point: `simulate_gbm / simulate_fat_tail / simulate_regime` → `run_analysis` → `MCResult.summary()`.
 
+## ML Layer (Tier 5)
+- `models/base.py`: `BaseModel` ABC (fit/predict/save/load) + `make_labels()` (forward-return labelling)
+- `models/xgb.py`: `XGBSignalModel` — XGBoost + StandardScaler, threshold-gated signals, walk-forward CV
+- `models/lstm.py`: `LSTMPriceModel` — PyTorch LSTM seq-to-one, early stopping, GPU-aware
+- `models/rl_agent.py`: `TradingEnv` (Gymnasium) + `PPORLAgent` (SB3 PPO) — position-based reward
+
 ## Next Step
-**Tier 5:** ML models — XGBoost signal predictor, LSTM price model, PPO RL execution agent.
+**Tier 6:** Risk manager — Kelly sizing, drawdown circuit-breaker, position limits, correlation-aware allocation.
