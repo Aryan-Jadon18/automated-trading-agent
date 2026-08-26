@@ -45,7 +45,7 @@ models/         checkpoints/, saved/      [git-ignored]
 | 5 | LSTM price model | ✅ Done |
 | 5 | RL agent (PPO execution) | ✅ Done |
 | 6 | Risk manager (Kelly, drawdown, exposure, correlation) | ✅ Done |
-| 7 | Execution layer (Alpaca paper trading) | ⬜ Pending |
+| 7 | Execution layer (orders, brokers, Alpaca) | ✅ Done |
 | 8 | Live orchestration + monitoring | ⬜ Pending |
 
 ## Key Design Decisions
@@ -81,10 +81,27 @@ Entry point: `simulate_gbm / simulate_fat_tail / simulate_regime` → `run_analy
 - **Closing/reducing a position is never blocked**, even while halted
 - Wired into `Portfolio(risk_manager=...)` and `run_backtest(risk_manager=...)`
 
+## Execution Layer (Tier 7)
+`execution/orders.py` — real orders, distinct from the backtest's internal events.
+- `Order` with an enforced status state machine; illegal transitions raise
+  `InvalidOrderTransition` rather than silently corrupting state
+- Partial fills accumulate a volume-weighted `avg_fill_price`
+- `OrderManager` tracks by client + broker id, and `reconcile()` reports drift
+  between locally-tracked fills and the broker's actual positions
+
+`execution/broker.py` — `BrokerBase` ABC over two implementations.
+- `MockBroker`: in-memory, no network. Market orders fill at once; limit orders
+  rest until `set_price()` moves the market through them. Used by all tests.
+- `AlpacaBroker`: alpaca-py, imported lazily so the module loads without it.
+  Maps Alpaca's 15 order states onto local statuses; broker is authoritative on drift.
+- **Live trading needs two independent switches**: `allow_live=True` *and*
+  `TRADING_ALLOW_LIVE=1`. Either one alone raises `LiveTradingBlocked`.
+
 ## Testing
-119 tests passing (`python3 -m pytest tests/ -q`). Heavy deps needed for the ML tier:
+189 tests passing (`python3 -m pytest tests/ -q`). Heavy deps needed for the ML tier:
 `pip install numpy pandas pytest pyyaml pydantic-settings scikit-learn structlog xgboost torch gymnasium stable-baselines3`
 Note: PyTorch's own CDN is blocked by the proxy — install `torch` from default PyPI.
 
 ## Next Step
-**Tier 7:** Execution layer — Alpaca paper-trading broker, order management, reconciliation.
+**Tier 8:** Live orchestration — scheduler/event loop, strategy→risk→broker wiring,
+state persistence across restarts, monitoring and alerting.
